@@ -1806,4 +1806,3 @@ En tant qu'ethical hacker professionnel, tu dois maîtriser les défenses pour l
 ---
 
 > **Module 6 terminé. ✅**
-> Dis-moi quand tu es prêt pour le **Module 7 — Malwares** (Analyse statique et dynamique, sandbox Cuckoo, reverse engineering avec Ghidra, obfuscation et anti-analyse — avec sorties complètes).
