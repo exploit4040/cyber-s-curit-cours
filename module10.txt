@@ -1,0 +1,1318 @@
+# 🛡️ CEH v12 — MODULE 10 : DÉNI DE SERVICE (DoS/DDoS)
+### Guide pédagogique avancé — Défense et compréhension | ML | exploit4040
+
+---
+
+## 📌 INTRODUCTION — COMPRENDRE LE DoS POUR MIEUX DÉFENDRE
+
+Le déni de service est l'une des attaques les plus **destructrices économiquement** et les plus **simples à comprendre conceptuellement**.
+
+```
+DÉFINITION FONDAMENTALE :
+
+DoS (Denial of Service) :
+→ Rendre un service, système ou réseau
+  INDISPONIBLE pour ses utilisateurs légitimes.
+
+DDoS (Distributed Denial of Service) :
+→ Même objectif mais lancé depuis
+  des MILLIERS de sources simultanément.
+  (beaucoup plus difficile à bloquer)
+
+IMPACT RÉEL :
+├── Amazon : $220 000/minute d'indisponibilité
+├── Google  : $694 000/minute d'indisponibilité
+├── Banques : $100 000 - $300 000/heure
+└── PME     : Peut signifier la faillite
+
+STATISTIQUES 2023 (Cloudflare Report) :
+├── 2 000+ attaques DDoS par jour dans le monde
+├── Attaque record : 71 millions req/s (Feb 2023)
+├── Durée moyenne : 1-4 heures
+└── Coût moyen pour la victime : $218 000/attaque
+```
+
+> **Objectif pédagogique :** Comprendre comment ces attaques fonctionnent pour dimensionner correctement les défenses, configurer les équipements de protection, et répondre efficacement lors d'un incident.
+
+---
+
+## 📌 PARTIE 1 : TAXONOMIE COMPLÈTE DES ATTAQUES DoS
+
+### 🔵 Les 3 grandes familles
+
+```
+ATTAQUES DoS/DDoS
+│
+├── VOLUMÉTRIQUES (Layer 3/4)
+│   → Saturer la bande passante
+│   → Mesurée en Gbps / Mpps
+│   → ICMP Flood, UDP Flood, Amplification
+│
+├── PROTOCOLES (Layer 3/4)
+│   → Exploiter les faiblesses des protocoles réseau
+│   → Mesurée en Mpps / PPS
+│   → SYN Flood, Smurf, Fraggle, Ping of Death
+│
+└── APPLICATIVES (Layer 7)
+    → Épuiser les ressources du serveur applicatif
+    → Mesurée en RPS (Requêtes Par Seconde)
+    → HTTP Flood, Slowloris, RUDY, XML Bomb
+```
+
+---
+
+## 📌 PARTIE 2 : ATTAQUES VOLUMÉTRIQUES
+
+### 🔴 ICMP FLOOD (Ping Flood)
+
+```
+PRINCIPE :
+Inonder la cible de paquets ICMP Echo Request
+en quantité massive pour saturer sa bande passante.
+
+FONCTIONNEMENT :
+Attaquant ──── ICMP Echo Request (x millions) ────> Cible
+               (Ping massif)                         │
+                                                     ▼
+                                              Bande passante saturée
+                                              CPU surchargé
+                                              → Service indisponible
+
+COMMANDE HISTORIQUE (éducatif) :
+ping -f -s 65507 192.168.1.10
+(Linux, envoi de gros paquets ICMP en flood)
+
+LIMITATION :
+→ Requiert plus de bande passante que la cible
+→ Facile à bloquer (rate limiting ICMP)
+→ Peu utilisé seul aujourd'hui
+```
+
+---
+
+### 🔴 UDP FLOOD
+
+```
+PRINCIPE :
+Envoyer massivement des paquets UDP vers des ports
+aléatoires de la cible.
+
+FONCTIONNEMENT :
+1. Attaquant envoie UDP vers port aléatoire de la cible
+2. Cible vérifie si un service écoute sur ce port
+3. Aucun service présent → Cible répond ICMP "Port Unreachable"
+4. Répété des millions de fois → Cible surchargée
+
+Attaquant ──── UDP vers port 45678 ────> Cible
+                                          │
+                                    Vérifie port 45678
+                                    Aucun service
+                                          │
+Attaquant <──── ICMP Unreachable ─────── Cible (surchargée!)
+```
+
+**Analyse tshark d'un UDP Flood :**
+```bash
+tshark -r udp_flood.pcap -Y "udp" -T fields \
+       -e ip.src -e ip.dst -e udp.dstport | head -20
+```
+
+**Sortie :**
+```
+192.168.1.5  192.168.1.10  45123
+192.168.1.5  192.168.1.10  12847
+192.168.1.5  192.168.1.10  58293
+192.168.1.5  192.168.1.10  33847
+192.168.1.5  192.168.1.10  9284
+192.168.1.5  192.168.1.10  47829
+[...des milliers de lignes - ports aléatoires...]
+
+STATISTIQUES :
+Total packets : 4,782,341
+Duration      : 60 seconds
+Packets/sec   : 79,705 pps
+Bandwidth     : 3.2 Gbps
+
+→ UDP flood massif détecté : ports aléatoires = signature d'attaque
+```
+
+---
+
+### 🔴 ATTAQUES D'AMPLIFICATION — Le multiplicateur de puissance
+
+Les attaques d'amplification exploitent des **services légitimes** pour amplifier le volume d'une attaque.
+
+```
+PRINCIPE GÉNÉRAL :
+═══════════════════════════════════════════════════════════════
+
+Attaquant (IP spoofée = IP victime)
+      │
+      │── Petite requête (100 octets)
+      ▼
+Serveur amplifiant (DNS, NTP, Memcached...)
+      │
+      │── Grande réponse (10 000 octets)
+      ▼
+Victime (croit recevoir une réponse à sa requête)
+
+FACTEUR D'AMPLIFICATION = Taille réponse / Taille requête
+
+→ Avec 1 Gbps de bande passante, l'attaquant peut
+  générer 50-500 Gbps vers la victime !
+```
+
+#### Amplification DNS (Facteur x28 à x73)
+
+```
+MÉCANISME :
+1. Attaquant envoie requête DNS ANY avec IP source = IP victime
+   Requête : 40 octets
+2. Serveur DNS répond à la "victime" avec tous les enregistrements
+   Réponse : 2 000-3 000 octets
+3. Facteur d'amplification : x50-75 !
+
+EXEMPLE DE REQUÊTE DNS AMPLIFIANTE :
+dig ANY isc.org @8.8.8.8 +short | wc -c
+→ 3847 octets de réponse pour 40 octets de requête
+→ Facteur : 96x !
+
+SERVEURS DNS OUVERTS :
+Résolveurs DNS qui acceptent les requêtes de n'importe qui.
+Shodan : dns.recursion:true → Des milliers disponibles.
+```
+
+**Analyse Wireshark amplification DNS :**
+```
+Frame 1 : Attaquant → Serveur DNS
+  Source      : 192.168.1.10 (IP VICTIME SPOOFÉE)
+  Destination : 8.8.8.8
+  Protocol    : DNS
+  Length      : 40 bytes
+  Query       : ANY isc.org
+
+Frame 2 : Serveur DNS → Victime
+  Source      : 8.8.8.8
+  Destination : 192.168.1.10 (VICTIME REÇOIT !)
+  Protocol    : DNS
+  Length      : 3847 bytes
+  Response    : Tous les enregistrements de isc.org
+
+→ Amplification : 3847/40 = 96x !
+→ Avec 100 Mbps de l'attaquant : 9.6 Gbps vers la victime
+```
+
+---
+
+#### Amplification NTP — monlist (Facteur x556 !)
+
+```
+NTP (Network Time Protocol) port 123 UDP
+Commande "monlist" : retourne les 600 derniers clients
+
+MÉCANISME :
+Requête monlist : 234 octets
+Réponse monlist : 100 paquets × 480 octets = 48 000 octets
+Facteur : 48000/234 = 206x à 556x !
+
+C'est l'amplification la plus puissante historiquement.
+
+Attaque Spamhaus (mars 2013) :
+→ 300 Gbps (record de l'époque)
+→ Amplification NTP principalement
+
+CONTRE-MESURE :
+→ Désactiver la commande monlist :
+  ntpdc -c "restrict default noquery" IP_SERVEUR
+→ Mettre à jour NTP > 4.2.7p26
+```
+
+---
+
+#### Amplification Memcached (Facteur x51 000 !)
+
+```
+Memcached : système de cache distribué, port 11211 UDP
+Problème : accepte les connexions UDP sans authentification
+
+MÉCANISME :
+Requête : 15 octets
+Réponse : peut atteindre 1 MB (données en cache)
+Facteur : jusqu'à 51 000x !
+
+ATTAQUE GITHUB (28 février 2018) :
+→ 1.35 Tbps (record mondial à l'époque)
+→ 126.9 millions de paquets/seconde
+→ Amplification Memcached
+→ Atténuée en 8-9 minutes grâce à Akamai
+
+CONTRE-MESURE IMMÉDIATE :
+→ Désactiver UDP sur Memcached :
+  memcached -U 0
+→ Firewall port 11211 UDP
+→ Ne JAMAIS exposer Memcached à internet
+```
+
+---
+
+#### Tableau récapitulatif des facteurs d'amplification
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│  PROTOCOLE   │  PORT   │  FACTEUR D'AMPLIFICATION             │
+├───────────────────────────────────────────────────────────────┤
+│  DNS         │  53/UDP │  28x - 96x                          │
+│  NTP monlist │  123/UDP│  206x - 556x                        │
+│  SSDP        │  1900/UDP│ 30x                                 │
+│  CharGEN     │  19/UDP │  358x                               │
+│  QOTD        │  17/UDP │  140x                               │
+│  BitTorrent  │  Variable│ 4x                                  │
+│  Memcached   │  11211/UDP│ 10 000x - 51 000x !              │
+│  CLDAP       │  389/UDP │ 56x - 70x                          │
+│  RIPv1       │  520/UDP │ 131x                               │
+│  Steam       │  27015/UDP│ 5x                                │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📌 PARTIE 3 : ATTAQUES PROTOCOLAIRES
+
+### 🔴 SYN FLOOD — L'attaque Half-Open
+
+```
+RAPPEL DU HANDSHAKE TCP NORMAL :
+═══════════════════════════════════════════════════════════════
+
+Client          Serveur
+  │── SYN ────────>│  Client veut se connecter
+  │<─── SYN-ACK ───│  Serveur répond, alloue ressources
+  │── ACK ────────>│  Connexion établie
+  │                │
+  [Communication]
+
+SYN FLOOD - EXPLOITATION :
+═══════════════════════════════════════════════════════════════
+
+Attaquant (IP spoofée)    Serveur
+  │── SYN ────────────────>│
+  │                        │  Serveur alloue ressource
+  │                        │  Attend ACK → Backlog Queue
+  │<─── SYN-ACK ───────────│  → Réponse vers IP spoofée
+  │                        │     (pas de réponse possible)
+  │── SYN ────────────────>│
+  │── SYN ────────────────>│
+  │── SYN ────────────────>│  Backlog saturé !
+  │── SYN ────────────────>│
+  │                        │
+  [Nouvelles connexions légitimes REFUSÉES]
+
+ÉTAT :
+Le serveur maintient des connexions "half-open" en attente
+jusqu'au timeout (75 secondes par défaut).
+→ Backlog rempli → Aucune nouvelle connexion possible.
+
+PARAMÈTRES LINUX VULNÉRABLES :
+/proc/sys/net/ipv4/tcp_max_syn_backlog = 1024 (défaut)
+/proc/sys/net/ipv4/tcp_syn_retries = 6
+/proc/sys/net/ipv4/tcp_synack_retries = 5
+```
+
+**Observation netstat pendant SYN Flood :**
+```bash
+# Sur le serveur attaqué
+watch -n 1 'netstat -ant | grep SYN_RECV | wc -l'
+```
+
+**Sortie :**
+```
+Avant attaque : 0 connexions SYN_RECV
+Pendant attaque :
+
+Every 1.0s: netstat -ant | grep SYN_RECV | wc -l
+
+2
+15
+89
+456
+1024   ← Backlog plein !
+1024   (nouvelles connexions refusées)
+1024
+...
+
+→ Serveur web inaccessible pour les utilisateurs légitimes
+```
+
+**Contre-mesure : SYN Cookies**
+```bash
+# Activer SYN Cookies sur Linux
+echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+sysctl -w net.ipv4.tcp_syncookies=1
+
+# Rendre permanent
+echo "net.ipv4.tcp_syncookies = 1" >> /etc/sysctl.conf
+```
+
+```
+FONCTIONNEMENT SYN COOKIES :
+→ Le serveur n'alloue AUCUNE ressource sur SYN
+→ Il encode les infos dans le numéro de séquence SYN-ACK
+  (cryptographiquement signé)
+→ Quand le vrai ACK arrive, le serveur reconstruit l'état
+→ Les faux SYN (IP spoofée) ne reçoivent jamais de vrai ACK
+→ Aucune ressource gaspillée !
+```
+
+---
+
+### 🔴 SMURF ATTACK
+
+```
+PRINCIPE :
+Exploiter le broadcast IP et ICMP pour amplifier.
+
+MÉCANISME :
+1. Attaquant envoie ICMP Echo Request en broadcast
+   Adresse source = IP de la VICTIME (spoofée)
+   Adresse destination = 192.168.1.255 (broadcast)
+
+2. TOUS les hôtes du réseau reçoivent la requête
+
+3. TOUS les hôtes répondent à la "source" = victime !
+
+Attaquant ──(src: VICTIME, dst: BROADCAST)──> Réseau
+                                                │
+                            ┌───────────────────┤
+                            │                   │
+                       Machine A            Machine B  ...
+                            │                   │
+                    ICMP Reply            ICMP Reply
+                            └───────────────────┘
+                                        │
+                                        ▼
+                                     VICTIME
+                               (inondée de réponses !)
+
+FACTEUR D'AMPLIFICATION :
+→ 1 paquet envoyé = N réponses (N = nombre de machines du réseau)
+→ Réseau de 254 machines = facteur 254x !
+
+CONTRE-MESURE :
+→ Désactiver le broadcast dirigé sur les routeurs :
+  Cisco: no ip directed-broadcast (interface)
+→ Ignorer les ICMP broadcast sur les hôtes :
+  echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+```
+
+---
+
+### 🔴 FRAGGLE ATTACK
+
+```
+FRAGGLE = Variante UDP de l'attaque Smurf
+
+Même mécanisme mais avec des paquets UDP
+vers les ports 7 (echo) et 19 (chargen)
+au lieu d'ICMP.
+
+→ Ports echo et chargen amplifient naturellement.
+→ Contre-mesures identiques au Smurf.
+```
+
+---
+
+### 🔴 PING OF DEATH
+
+```
+PRINCIPE :
+Envoyer un paquet ICMP dépassant la taille maximale.
+
+TAILLE MAXIMALE IP : 65 535 octets
+TAILLE MAXIMALE ETHERNET FRAME : 1 500 octets
+→ Les gros paquets sont fragmentés
+
+ATTAQUE :
+Créer un paquet ICMP de 65 536+ octets (illégal).
+Quand le système tente de le réassembler :
+→ Buffer overflow !
+→ Crash du système (BSoD sur Windows anciens)
+
+STATUT ACTUEL :
+→ Patchée sur tous les OS modernes depuis 1998
+→ Intérêt purement historique pour l'examen CEH
+→ Variante IPv6 existe : "Ping of Death IPv6" (2013)
+
+HPING3 (ÉDUCATIF - lab uniquement) :
+sudo hping3 -1 --rand-source -d 65000 192.168.1.10
+```
+
+---
+
+### 🔴 TEARDROP ATTACK
+
+```
+PRINCIPE :
+Envoyer des fragments IP avec des offsets qui se
+chevauchent de façon invalide.
+
+NORMAL :
+Fragment 1 : octets 0-1499
+Fragment 2 : octets 1500-2999
+Fragment 3 : octets 3000-3499
+
+TEARDROP :
+Fragment 1 : octets 0-1499
+Fragment 2 : octets 1000-1499  ← CHEVAUCHEMENT !
+Fragment 3 : octets 900-1200   ← CONFUSION !
+
+EFFET :
+→ La pile TCP/IP tente de réassembler les fragments
+→ Les offsets contradictoires causent une confusion
+→ Crash / freeze du système sur les OS anciens
+
+STATUT : Corrigé depuis Windows NT 4.0 SP4, Linux 2.1.63
+```
+
+---
+
+## 📌 PARTIE 4 : ATTAQUES APPLICATIVES (LAYER 7)
+
+Ces attaques sont les plus **dangereuses et difficiles à détecter** car elles imitent du trafic légitime.
+
+### 🔴 HTTP FLOOD
+
+```
+PRINCIPE :
+Envoyer un maximum de requêtes HTTP légitimes
+pour épuiser les ressources du serveur web.
+
+TYPES :
+GET Flood  : millions de GET /index.php
+POST Flood : millions de POST avec données
+Cache-bypass : ajouter paramètre aléatoire
+              GET /index.php?q=random123
+
+POURQUOI DIFFICILE À BLOQUER :
+├── Requêtes 100% légitimes syntaxiquement
+├── Trafic impossible à distinguer du vrai trafic
+├── Pas de spoofing IP (connexion TCP complète)
+└── Un WAF basique ne peut pas le filtrer
+
+DIFFÉRENCE AVEC SYN FLOOD :
+SYN Flood = Layer 4 (TCP), visible par volumétrie
+HTTP Flood = Layer 7 (Application), invisible en volumétrie
+```
+
+---
+
+### 🔴 SLOWLORIS — L'attaque au ralenti
+
+**Slowloris** (créé par Robert "RSnake" Hansen) est l'une des attaques DoS les plus **élégantes et efficaces**.
+
+```
+PRINCIPE GÉNIAL :
+════════════════════════════════════════════════════════════
+
+COMPORTEMENT NORMAL HTTP :
+Client ouvre connexion → Envoie requête complète
+→ Serveur traite → Répond → Ferme connexion
+[Connexion dure quelques millisecondes]
+
+SLOWLORIS :
+Client ouvre connexion → Envoie requête INCOMPLÈTE
+→ Serveur attend la fin de la requête...
+→ Client envoie un header toutes les 15 secondes
+  (juste assez pour ne pas être timeouté)
+→ Serveur maintient la connexion INDÉFINIMENT
+→ Toutes les connexions disponibles épuisées
+→ Serveur web inaccessible !
+
+REQUÊTE SLOWLORIS :
+GET / HTTP/1.1\r\n
+Host: victime.com\r\n
+User-Agent: Mozilla/5.0\r\n
+Accept: text/html\r\n
+X-Keep-Alive: \r\n
+← INCOMPLET ! En-tête jamais terminé (manque \r\n final)
+
+→ Toutes les 15s, envoie un header additionnel :
+X-Random-Header: RandomValue\r\n
+→ Réinitialise le timer de timeout
+→ Connexion maintenue indéfiniment !
+```
+
+**Simulation de l'état du serveur pendant Slowloris :**
+
+```
+ÉTAT APACHE PENDANT SLOWLORIS :
+════════════════════════════════════════════════════════════
+
+AVANT ATTAQUE :
+Workers actifs    : 5 / 150
+Workers disponibles: 145 / 150
+
+PENDANT ATTAQUE (5 minutes) :
+Workers actifs    : 150 / 150  ← SATURÉ !
+Workers disponibles: 0 / 150
+
+État des connexions (netstat):
+tcp  ESTABLISHED  192.168.1.5:50001 → 192.168.1.10:80
+tcp  ESTABLISHED  192.168.1.5:50002 → 192.168.1.10:80
+tcp  ESTABLISHED  192.168.1.5:50003 → 192.168.1.10:80
+[...150 connexions depuis la même IP...]
+
+→ Apache a 150 workers par défaut
+→ 150 connexions lentes = Apache complètement saturé
+→ Aucune connexion légitime possible
+
+AVANTAGE POUR L'ATTAQUANT :
+→ Nécessite très peu de bande passante
+→ Difficile à détecter (connexions "normales")
+→ Efficace même avec un seul PC !
+```
+
+**Contre-mesures contre Slowloris :**
+
+```bash
+# Apache : Module mod_reqtimeout
+# /etc/apache2/conf-enabled/reqtimeout.conf
+RequestReadTimeout header=20-40,MinRate=500 body=20-40,MinRate=500
+
+# Nginx est naturellement résistant à Slowloris
+# (architecture événementielle vs thread-based d'Apache)
+
+# Limit des connexions par IP avec iptables
+iptables -I INPUT -p tcp --dport 80 -m connlimit \
+         --connlimit-above 20 -j REJECT --reject-with tcp-reset
+
+# Timeout agressif sur Apache
+Timeout 30
+KeepAliveTimeout 5
+```
+
+---
+
+### 🔴 RUDY (R-U-Dead-Yet?)
+
+```
+PRINCIPE :
+Variante de Slowloris mais pour les requêtes POST.
+Envoie le body d'un POST très lentement,
+1 octet toutes les X secondes.
+
+POST /login.php HTTP/1.1
+Host: victime.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 10000   ← Déclare 10 000 octets
+
+username=   ← Envoie seulement quelques octets...
+            ← Attend...
+            ← Envoie quelques octets...
+
+→ Serveur attend la fin du POST (Content-Length)
+→ Connexion maintenue
+→ Même effet que Slowloris
+```
+
+---
+
+### 🔴 SLOW READ ATTACK
+
+```
+PRINCIPE :
+Exploiter la fenêtre TCP pour ralentir la réception.
+Le client reçoit les données très lentement,
+forçant le serveur à maintenir des buffers ouverts.
+
+MÉCANISME :
+1. Client envoie une requête HTTP valide
+2. Client annonce une fenêtre TCP TRÈS PETITE (ex: 1 octet)
+3. Serveur doit envoyer les données 1 octet à la fois
+4. Client attend longtemps entre chaque octet reçu
+5. Serveur maintient la connexion et les buffers
+
+→ Epuise la mémoire du serveur (buffers)
+→ Pas la bande passante
+```
+
+---
+
+### 🔴 XML BOMB / BILLION LAUGHS
+
+```
+PRINCIPE :
+Exploiter le parsing XML pour épuiser la mémoire.
+
+EXEMPLE DE XML BOMB :
+<?xml version="1.0"?>
+<!DOCTYPE lolz [
+  <!ENTITY lol "lol">
+  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+  <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+  <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">
+  <!ENTITY lol5 "&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;">
+  <!ENTITY lol6 "&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;">
+  <!ENTITY lol7 "&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;">
+  <!ENTITY lol8 "&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;">
+  <!ENTITY lol9 "&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;">
+]>
+<lolz>&lol9;</lolz>
+
+CALCUL DE L'EXPANSION :
+lol  = 3 octets
+lol2 = 30 octets
+lol3 = 300 octets
+lol4 = 3 000 octets
+lol9 = 3 000 000 000 octets (3 GB !)
+
+→ Fichier XML de quelques Ko → 3 GB en mémoire !
+→ Serveur XML parser épuisé en mémoire
+
+CONTRE-MESURE :
+→ Désactiver les DTD externes dans les parsers XML
+→ Limiter la profondeur de récursion
+→ Limiter la taille des entités
+```
+
+---
+
+## 📌 PARTIE 5 : BOTNETS — L'INFRASTRUCTURE DDoS
+
+### 🔵 Architecture d'un botnet DDoS professionnel
+
+```
+STRUCTURE COMPLÈTE D'UN BOTNET :
+════════════════════════════════════════════════════════════════
+
+NIVEAU 1 : BOTMASTER (L'attaquant)
+  └── Contrôle tout depuis l'ombre
+      ├── Via réseau Tor (anonymat)
+      └── Via VPN chaîné
+
+NIVEAU 2 : C2 (Command & Control)
+  ├── Architecture Client-Serveur :
+  │   Botmaster → C2 Server → Bots
+  │   ⚠ Point unique de défaillance
+  │   Si C2 tombé → botnet inutile
+  │
+  └── Architecture P2P (plus résiliente) :
+      Chaque bot = client ET serveur
+      Pas de serveur central
+      Très difficile à démanteler
+
+NIVEAU 3 : BOTS (Machines infectées)
+  ├── PCs Windows malveillants
+  ├── Serveurs Linux compromis
+  ├── Routeurs domestiques (Mirai)
+  ├── Caméras IP et IoT
+  ├── Smartphones Android
+  └── Serveurs cloud piratés
+
+PROTOCOLES C2 :
+├── IRC   → Vieux mais encore utilisé
+├── HTTP/HTTPS → Trafic légitime apparence
+├── DNS   → Tunneling DNS (très discret)
+├── P2P   → Décentralisé (Kelihos, GameOver Zeus)
+└── TOR   → Anonymat maximal
+```
+
+---
+
+### 🔵 Mirai — Le botnet IoT révolutionnaire
+
+```
+MIRAI BOTNET (2016) — ANATOMIE COMPLÈTE
+════════════════════════════════════════════════════════════════
+
+CIBLES :
+Routeurs domestiques, caméras IP, DVRs, imprimantes
+→ Appareils IoT avec credentials par défaut !
+
+MÉTHODE D'INFECTION :
+1. Scanner internet sur port 23 (Telnet)
+2. Tenter 61 paires login/password par défaut :
+   admin/admin, root/root, admin/password...
+3. Télécharger et exécuter le bot Mirai
+4. Signaler au C2
+
+LISTE DES CREDENTIALS TESTÉS (extrait) :
+admin/admin     root/root       admin/1234
+guest/guest     root/vizxv      admin/admin1234
+admin/password  supervisor/supervisor  user/user
+[...61 combinaisons totales...]
+
+ATTAQUES LANCÉES :
+├── 20 septembre 2016 : KrebsOnSecurity 620 Gbps
+├── 21 octobre 2016 : Dyn DNS
+│   → Twitter, Netflix, Amazon, GitHub HS !
+│   → 1.2 Tbps (record mondial à l'époque)
+└── 600 000 appareils IoT infectés
+
+CODE SOURCE PUBLIÉ :
+→ Mirai rendu public = prolifération de variants
+→ Satori, Okiru, Masuta, PureMasuta...
+
+LEÇON FONDAMENTALE :
+→ Changer TOUJOURS les credentials par défaut
+  sur les appareils réseau !
+```
+
+---
+
+## 📌 PARTIE 6 : OUTILS DE TEST DoS (ENVIRONNEMENT LAB UNIQUEMENT)
+
+> ⚠️ **Ces outils sont présentés dans un contexte purement éducatif pour la compréhension et le passage de l'examen CEH. Leur utilisation sans autorisation explicite est un crime.**
+
+---
+
+### 🛠️ HPING3 — Générateur de paquets avancé
+
+```bash
+# SYN Flood (lab uniquement - machine cible autorisée)
+sudo hping3 -S --flood --rand-source -p 80 192.168.1.10
+```
+
+**Sortie :**
+```
+HPING 192.168.1.10 (eth0 192.168.1.10): S set, 40 headers + 0 data bytes
+hping in flood mode, no replies will be shown
+
+--- 192.168.1.10 hping statistic ---
+3847291 packets transmitted, 0 packets received, 100% packet loss
+round-trip min/avg/max = 0.0/0.0/0.0 ms
+```
+
+```bash
+# UDP Flood vers port 53
+sudo hping3 --udp --flood --rand-source -p 53 192.168.1.10
+
+# ICMP Flood
+sudo hping3 --icmp --flood --rand-source 192.168.1.10
+
+# Ping of Death (paquets fragmentés volumineux)
+sudo hping3 -1 -d 65000 --flood 192.168.1.10
+```
+
+---
+
+### 🛠️ Slowloris — Test de résistance serveur web
+
+```bash
+# Installation
+pip install slowloris
+
+# Test (lab uniquement)
+slowloris 192.168.1.10 -p 80 -s 500
+```
+
+**Sortie :**
+```
+Attacking 192.168.1.10 with 500 sockets:
+ Sending keep-alive headers...
+ Socket count: 500
+ Sending keep-alive headers...
+ Socket count: 500
+[Headers sent to delay timeout]
+
+→ Surveiller le serveur cible :
+  watch -n1 'netstat -ant | grep ESTABLISHED | grep :80 | wc -l'
+
+Output:
+100
+200
+300
+400
+500   ← Sockets max atteints
+500
+500   ← Serveur potentiellement inaccessible
+```
+
+---
+
+### 🛠️ LOIC (Low Orbit Ion Cannon)
+
+```
+LOIC est un outil open source de stress testing.
+Il fut massivement utilisé par Anonymous pour
+des attaques DDoS coordonnées (Opération Payback, 2010).
+
+FONCTIONNEMENT :
+├── Mode HTTP Flood
+├── Mode TCP Flood
+├── Mode UDP Flood
+└── Mode HIVEMIND (contrôle via IRC)
+
+LIMITATION MAJEURE :
+→ N'utilise PAS l'IP spoofing
+→ Votre vraie IP est visible dans les logs
+→ Des milliers de participants d'Anonymous arrêtés !
+
+LEÇON : LOIC = outil de formation uniquement,
+         jamais pour de vraies attaques
+```
+
+---
+
+## 📌 PARTIE 7 : DÉTECTION DES ATTAQUES DoS
+
+### 🛠️ Métriques de détection
+
+```
+INDICATEURS D'UNE ATTAQUE DoS :
+════════════════════════════════════════════════════════════════
+
+RÉSEAU :
+├── Augmentation soudaine et massive de la bande passante
+├── Taux de paquets anormalement élevé (PPS)
+├── Grand nombre de SYN sans ACK correspondant
+├── Trafic depuis une seule IP ou AS (attaque non distribuée)
+├── Protocoles inhabituels en volume anormal
+└── Patterns répétitifs dans les paquets
+
+SYSTÈME :
+├── CPU à 100% sans raison apparente
+├── Mémoire épuisée (buffers saturés)
+├── Connexions établies anormalement nombreuses
+├── Timeout des requêtes légitimes
+└── Logs d'erreurs en volume inhabituel
+
+APPLICATIF :
+├── Temps de réponse dégradé
+├── Erreurs 503 (Service Unavailable)
+├── Connexions en état CLOSE_WAIT massives
+├── Saturation du pool de connexions DB
+└── Files d'attente de traitement saturées
+```
+
+---
+
+### 🛠️ Netstat pour détecter un SYN Flood
+
+```bash
+# Compter les connexions par état
+netstat -ant | awk '{print $6}' | sort | uniq -c | sort -rn
+```
+
+**Sortie normale :**
+```
+     145 ESTABLISHED
+      12 TIME_WAIT
+       5 LISTEN
+       2 CLOSE_WAIT
+```
+
+**Sortie pendant SYN Flood :**
+```
+    1024 SYN_RECV     ← ALARME ! (backlog saturé)
+      23 ESTABLISHED
+       8 TIME_WAIT
+       5 LISTEN
+```
+
+```bash
+# Identifier les IPs qui font le plus de connexions
+netstat -ant | grep SYN_RECV | awk '{print $5}' | \
+cut -d: -f1 | sort | uniq -c | sort -rn | head -20
+```
+
+**Sortie :**
+```
+    523 192.168.1.5      ← Source principale de l'attaque
+     89 10.0.0.45
+     34 172.16.1.22
+      2 192.168.1.20     ← Utilisateur légitime
+
+→ Bloquer immédiatement 192.168.1.5 !
+```
+
+---
+
+### 🛠️ Netflow / MRTG / Zabbix — Monitoring réseau
+
+```
+NETFLOW ANALYSIS :
+NetFlow = protocole Cisco qui exporte des statistiques
+de trafic depuis les routeurs vers un collecteur.
+
+Données collectées par flux :
+├── IP source / destination
+├── Port source / destination
+├── Protocole
+├── Nombre de paquets
+├── Nombre d'octets
+└── Durée du flux
+
+DÉTECTION DDoS VIA NETFLOW :
+Graphe normal (baseline) :
+Trafic     ████████████████████
+           [stable, ~100 Mbps]
+
+Graphe pendant DDoS :
+                               ████████████████████████
+           ████████████████████                        ←seuil
+Trafic     [spike massif visible]
+
+→ Alertes automatiques si dépassement du seuil
+→ Identification rapide de la source
+```
+
+---
+
+## 📌 PARTIE 8 : CONTRE-MESURES ET MITIGATION
+
+### 🔵 Défense en profondeur contre DDoS
+
+```
+ARCHITECTURE DE DÉFENSE CONTRE DDOS :
+════════════════════════════════════════════════════════════════
+
+COUCHE 1 : ISP / UPSTREAM PROVIDER
+├── Blackhole Routing (RTBH)
+│   → L'ISP redirige le trafic vers /dev/null
+│   → Bloque l'attaque AVANT qu'elle atteigne votre réseau
+│   → Inconvénient : votre IP = aussi inaccessible
+│
+└── BGP Flowspec
+    → Filtrage précis basé sur critères (IP src, port, taille)
+    → Plus précis que le blackhole total
+
+COUCHE 2 : CDN / ANTI-DDOS CLOUD
+├── Cloudflare
+│   → Absorbe le trafic dans 200+ datacenters
+│   → Capacité : > 100 Tbps
+│   → Magic Transit, DDoS Protection
+│
+├── Akamai Prolexic
+│   → Scrubbing centers dédiés
+│   → BGP anycast
+│
+├── AWS Shield
+│   → Standard (gratuit) : protection L3/L4
+│   → Advanced ($3000/mois) : L7 + support 24/7
+│
+└── Fastly, Imperva, Radware
+
+COUCHE 3 : ÉQUIPEMENTS RÉSEAU
+├── Rate Limiting (iptables / nftables)
+│
+│   # Limiter les connexions par IP
+│   iptables -A INPUT -p tcp --dport 80 \
+│            -m limit --limit 25/min \
+│            --limit-burst 100 -j ACCEPT
+│
+│   # Bloquer le SYN Flood
+│   iptables -A INPUT -p tcp --syn \
+│            -m limit --limit 1/s \
+│            --limit-burst 3 -j ACCEPT
+│   iptables -A INPUT -p tcp --syn -j DROP
+│
+├── SYN Cookies (déjà vu)
+│
+├── TCP Intercept (Cisco)
+│   → Le routeur répond aux SYN à la place du serveur
+│   → Vérifie si le client complète le handshake
+│
+└── Access Control Lists (ACL)
+    → Bloquer les IP sources identifiées
+    → Filtrer les protocoles amplifiants
+
+COUCHE 4 : SERVEURS / OS
+├── Tuning du kernel Linux :
+│
+│   # Augmenter le backlog SYN
+│   echo 8192 > /proc/sys/net/ipv4/tcp_max_syn_backlog
+│
+│   # SYN Cookies obligatoires
+│   echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+│
+│   # Réduire le timeout SYN-ACK
+│   echo 3 > /proc/sys/net/ipv4/tcp_synack_retries
+│
+│   # Limiter les requêtes ICMP
+│   echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+│
+│   # Timeout agressif connexions fin
+│   echo 30 > /proc/sys/net/ipv4/tcp_fin_timeout
+│
+├── Nginx comme reverse proxy :
+│   → Architecture asynchrone = résistant à Slowloris
+│   → Rate limiting natif :
+│
+│   limit_req_zone $binary_remote_addr
+│                  zone=api:10m rate=10r/s;
+│
+│   server {
+│     location /api/ {
+│       limit_req zone=api burst=20 nodelay;
+│     }
+│   }
+│
+└── WAF (Web Application Firewall)
+    → ModSecurity (open source)
+    → Cloudflare WAF
+    → AWS WAF
+
+COUCHE 5 : MONITORING ET RÉPONSE
+├── IDS/IPS (Snort, Suricata)
+├── SIEM (Splunk, ELK Stack)
+├── Playbook de réponse DDoS
+└── Contact ISP et hébergeur prédéfini
+```
+
+---
+
+### 🛠️ Règles iptables complètes contre DoS
+
+```bash
+#!/bin/bash
+# Script de protection DoS - Pour usage défensif
+
+# ─── PROTECTION SYN FLOOD ─────────────────────────────────────
+iptables -A INPUT -p tcp --syn \
+         -m limit --limit 1/s --limit-burst 3 \
+         -j ACCEPT
+iptables -A INPUT -p tcp --syn -j LOG --log-prefix "SYN_FLOOD: "
+iptables -A INPUT -p tcp --syn -j DROP
+
+# ─── PROTECTION ICMP FLOOD ────────────────────────────────────
+iptables -A INPUT -p icmp --icmp-type echo-request \
+         -m limit --limit 1/s --limit-burst 5 \
+         -j ACCEPT
+iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+
+# ─── PROTECTION UDP FLOOD ─────────────────────────────────────
+iptables -A INPUT -p udp \
+         -m limit --limit 10/s --limit-burst 20 \
+         -j ACCEPT
+iptables -A INPUT -p udp -j DROP
+
+# ─── LIMITE CONNEXIONS PAR IP ─────────────────────────────────
+iptables -A INPUT -p tcp --dport 80 \
+         -m connlimit --connlimit-above 50 \
+         -j REJECT --reject-with tcp-reset
+
+iptables -A INPUT -p tcp --dport 443 \
+         -m connlimit --connlimit-above 50 \
+         -j REJECT --reject-with tcp-reset
+
+# ─── PROTECTION NOUVELLE CONNEXIONS ──────────────────────────
+iptables -A INPUT -p tcp --dport 80 -m state --state NEW \
+         -m recent --set --name HTTP_NEW
+iptables -A INPUT -p tcp --dport 80 -m state --state NEW \
+         -m recent --update --seconds 10 --hitcount 20 \
+         --name HTTP_NEW -j DROP
+
+# ─── BLOQUER IP SPÉCIFIQUE (PENDANT ATTAQUE) ─────────────────
+# iptables -A INPUT -s IP_ATTAQUANT -j DROP
+
+# ─── AFFICHER LES RÈGLES ─────────────────────────────────────
+iptables -L -n -v --line-numbers
+```
+
+**Sortie iptables -L :**
+```
+Chain INPUT (policy ACCEPT)
+num  target  prot  opt  source      destination  extra
+1    ACCEPT  tcp   --   anywhere    anywhere     tcp flags:SYN
+                                                limit: avg 1/s burst 3
+2    LOG     tcp   --   anywhere    anywhere     tcp flags:SYN
+                                                LOG prefix "SYN_FLOOD: "
+3    DROP    tcp   --   anywhere    anywhere     tcp flags:SYN
+4    ACCEPT  icmp  --   anywhere    anywhere     icmp echo-request
+                                                limit: avg 1/s burst 5
+5    DROP    icmp  --   anywhere    anywhere     icmp echo-request
+6    REJECT  tcp   --   anywhere    anywhere     tcp dpt:80
+                                                #conn src/32 > 50
+7    REJECT  tcp   --   anywhere    anywhere     tcp dpt:443
+                                                #conn src/32 > 50
+```
+
+---
+
+### 🛠️ Configuration Snort — Règles de détection DoS
+
+```
+# /etc/snort/rules/ddos.rules
+
+# Détection SYN Flood
+alert tcp any any -> $HOME_NET 80 \
+  (msg:"SYN Flood Detected"; \
+   flags:S,12; \
+   threshold:type both, track by_src, \
+             count 1000, seconds 10; \
+   classtype:attempted-dos; \
+   sid:1000001; rev:1;)
+
+# Détection UDP Flood
+alert udp any any -> $HOME_NET any \
+  (msg:"UDP Flood Detected"; \
+   threshold:type threshold, track by_src, \
+             count 5000, seconds 5; \
+   classtype:attempted-dos; \
+   sid:1000002; rev:1;)
+
+# Détection ICMP Flood
+alert icmp any any -> $HOME_NET any \
+  (msg:"ICMP Flood Detected"; \
+   itype:8; \
+   threshold:type threshold, track by_src, \
+             count 500, seconds 5; \
+   classtype:attempted-dos; \
+   sid:1000003; rev:1;)
+
+# Détection Slowloris
+alert tcp any any -> $HOME_NET 80 \
+  (msg:"Possible Slowloris Attack"; \
+   flow:to_server,established; \
+   content:"GET"; http_method; \
+   threshold:type both, track by_src, \
+             count 20, seconds 60; \
+   classtype:attempted-dos; \
+   sid:1000004; rev:1;)
+
+# Détection amplification DNS
+alert udp $HOME_NET any -> any 53 \
+  (msg:"Possible DNS Amplification"; \
+   content:"|00 00 FF 00 01|"; \
+   threshold:type threshold, track by_src, \
+             count 100, seconds 10; \
+   classtype:attempted-dos; \
+   sid:1000005; rev:1;)
+```
+
+**Sortie Snort lors d'une alerte :**
+```
+[**] [1:1000001:1] SYN Flood Detected [**]
+[Classification: Attempted Denial of Service]
+11/15-18:30:12.123456 192.168.1.5:47821 -> 192.168.1.10:80
+TCP TTL:64 TOS:0x0 ID:12345 IpLen:20 DgmLen:40
+******S* Seq: 0x1F2A3B4C  Ack: 0x0
+TcpLen: 20
+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+[**] [1:1000003:1] ICMP Flood Detected [**]
+[Classification: Attempted Denial of Service]
+11/15-18:30:15.234567 192.168.1.5 -> 192.168.1.10
+ICMP TTL:64 TOS:0x0 ID:54321 IpLen:20 DgmLen:60
+Type:8  Code:0  ID:256   Seq:1  ECHO
+```
+
+---
+
+## 📌 PARTIE 9 : PLAN DE RÉPONSE À UN INCIDENT DDoS
+
+```
+PLAYBOOK DE RÉPONSE INCIDENT DDoS :
+════════════════════════════════════════════════════════════════
+
+PHASE 1 : DÉTECTION ET CONFIRMATION (0-5 min)
+├── Vérifier les alertes monitoring (Zabbix, Nagios, Datadog)
+├── Confirmer l'indisponibilité depuis plusieurs points
+│   curl -I https://votre-site.com (depuis externe)
+├── Analyser le trafic réseau (netstat, netflow, Wireshark)
+├── Identifier le type d'attaque (volumétrique, protocole, applicative)
+└── Estimer le volume d'attaque (Gbps, PPS, RPS)
+
+PHASE 2 : CONFINEMENT IMMÉDIAT (5-15 min)
+├── Activer les règles iptables de protection
+├── Contacter l'hébergeur/ISP (numéro d'urgence prédéfini)
+├── Activer le service anti-DDoS (Cloudflare, Akamai)
+├── Blackhole routing si nécessaire
+│   ip route add blackhole IP_ATTAQUANT/32
+└── Bloquer les IPs identifiées comme sources
+
+PHASE 3 : INVESTIGATION (15-60 min)
+├── Analyser les logs et captures réseau
+│   tshark -r capture.pcap -Y "tcp.flags.syn==1" |
+│   awk '{print $3}' | sort | uniq -c | sort -rn
+├── Identifier les patterns de l'attaque
+├── Distinguer le trafic légitime du trafic d'attaque
+├── Coordonner avec l'ISP pour le filtrage upstream
+└── Documenter tous les IOCs (IPs, ASNs, signatures)
+
+PHASE 4 : MITIGATION AVANCÉE (selon durée)
+├── Geo-blocking (si attaque concentrée géographiquement)
+├── Captcha challenge (si attaque applicative)
+├── Whitelist des IPs légitimes connues
+├── Rate limiting dynamique
+└── Anycast routing (distribuer le trafic)
+
+PHASE 5 : RÉCUPÉRATION ET RAPPORT
+├── Vérifier le retour à la normale
+├── Tester tous les services
+├── Rédiger le rapport post-incident :
+│   ├── Chronologie
+│   ├── Type et volume d'attaque
+│   ├── Actions entreprises
+│   ├── Durée d'indisponibilité
+│   ├── Impact business estimé
+│   └── Recommandations d'amélioration
+└── Renforcer les défenses pour éviter la récurrence
+```
+
+---
+
+## 📌 RÉSUMÉ FINAL — CE QUE L'EXAMEN VA TESTER
+
+```
+✅ DoS vs DDoS — définitions et différences
+✅ 3 familles d'attaques — volumétrique, protocole, applicative
+✅ ICMP Flood — principe et contre-mesure
+✅ UDP Flood — mécanisme et détection
+✅ Amplification DNS/NTP/Memcached — facteurs et mécanismes
+✅ SYN Flood — half-open connections et saturation backlog
+✅ SYN Cookies — comment ça fonctionne
+✅ Smurf Attack — broadcast ICMP + IP spoofing
+✅ Ping of Death — dépassement taille maximale IP
+✅ Teardrop — fragments avec offsets contradictoires
+✅ HTTP Flood — difficile à détecter (Layer 7)
+✅ Slowloris — connexions lentes, épuisement workers
+✅ RUDY — POST lent (variante Slowloris)
+✅ XML Bomb / Billion Laughs — DoS applicatif
+✅ Botnet Mirai — IoT, credentials par défaut
+✅ Architecture C2 — client-serveur vs P2P
+✅ Hping3 — générateur de paquets pour tests
+✅ Détection — netstat, netflow, Snort
+✅ Blackhole Routing — mitigation ISP level
+✅ SYN Cookies, Rate Limiting, iptables — contre-mesures
+✅ WAF, CDN, Cloudflare — protection Layer 7
+```
+
+---
+
+## 🧪 QUESTIONS TYPE EXAMEN CEH — MODULE 10
+
+**Q1 :** Quelle différence fondamentale entre DoS et DDoS ?
+> **Réponse : DoS = attaque depuis une seule source. DDoS = attaque distribuée depuis des milliers de sources simultanément (botnet). Le DDoS est beaucoup plus difficile à bloquer car on ne peut pas simplement bloquer une IP source.**
+
+**Q2 :** Pourquoi les attaques d'amplification sont-elles particulièrement dangereuses ?
+> **Réponse : Elles permettent à un attaquant avec peu de bande passante de générer un volume massif vers la victime. Ex: Memcached avec un facteur x51 000 : 1 Gbps de l'attaquant = 51 Tbps vers la victime. De plus, l'IP source est spoofée donc l'attaquant est invisible.**
+
+**Q3 :** Comment fonctionne le SYN Flood et quelle est la contre-mesure principale ?
+> **Réponse : L'attaquant envoie des milliers de SYN avec IP spoofée. Le serveur alloue des ressources et attend les ACK qui n'arrivent jamais → backlog saturé. Contre-mesure principale : SYN Cookies — le serveur encode l'état dans le numéro de séquence sans allouer de ressource.**
+
+**Q4 :** Qu'est-ce que l'attaque Smurf et pourquoi est-elle amplifiante ?
+> **Réponse : L'attaquant envoie un ICMP Echo Request en broadcast avec l'IP source spoofée = IP victime. Toutes les machines du réseau répondent à la "victime". Facteur d'amplification = nombre de machines sur le réseau.**
+
+**Q5 :** Pourquoi Slowloris est-il efficace même avec peu de bande passante ?
+> **Réponse : Il ouvre de nombreuses connexions HTTP partielles et envoie un header toutes les 15 secondes pour éviter le timeout. Chaque connexion occupe un worker Apache indéfiniment. 150 connexions suffisent à saturer Apache (150 workers par défaut). Nginx est naturellement résistant (architecture asynchrone).**
+
+**Q6 :** Quelle commande permet de voir les connexions SYN_RECV en temps réel sur un serveur attaqué ?
+> **Réponse : `netstat -ant | awk '{print $6}' | sort | uniq -c | sort -rn` — Un grand nombre de SYN_RECV indique un SYN Flood en cours.**
+
+**Q7 :** Qu'est-ce que le Blackhole Routing et quand l'utiliser ?
+> **Réponse : Technique où l'ISP redirige tout le trafic vers une IP vers /dev/null (le vide). Utilisé lors d'attaques volumétriques massives pour protéger l'infrastructure. Inconvénient : l'IP ciblée devient inaccessible pour tout le monde (attaque réussie du point de vue disponibilité).**
+
+**Q8 :** Pourquoi le botnet Mirai a-t-il été si dévastateur en 2016 ?
+> **Réponse : Il exploitait des millions d'appareils IoT (caméras, routeurs) utilisant leurs credentials par défaut (admin/admin etc.). Ces appareils sont rarement mis à jour et toujours connectés. L'attaque Dyn du 21 octobre 2016 a généré 1.2 Tbps, rendant Twitter, Netflix, GitHub inaccessibles.**
+
+**Q9 :** Quelle différence entre une attaque DoS volumétrique et une attaque applicative (Layer 7) en termes de détection ?
+> **Réponse : Volumétrique = visible immédiatement par le monitoring réseau (spike de bande passante, PPS élevé). Applicative Layer 7 = indétectable par la volumétrie car chaque requête est légitime. Nécessite une analyse du comportement applicatif (RPS, temps de réponse, taux d'erreurs).**
+
+**Q10 :** Quels protocoles sont exploités dans les attaques d'amplification et comment s'en protéger ?
+> **Réponse : DNS (port 53), NTP (port 123, commande monlist), Memcached (port 11211), SSDP (port 1900). Protection : désactiver les résolveurs DNS ouverts, désactiver monlist NTP, désactiver UDP Memcached (`-U 0`), filtrer les ports UDP non nécessaires en entrée.**
+
+---
+
+> **Module 10 terminé. ✅**
+> Dis-moi quand tu es prêt pour le **Module 11 — Vol de Session** (Session Hijacking, Cookie Stealing, CSRF, JWT attacks, Burp Suite avancé — avec démonstrations complètes).

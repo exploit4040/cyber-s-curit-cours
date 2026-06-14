@@ -1,0 +1,1181 @@
+# 🛡️ CEH v12 — MODULE 9 : INGÉNIERIE SOCIALE
+### Guide pédagogique avancé — Psychologie & Techniques | ML | exploit4040
+
+---
+
+## 📌 INTRODUCTION — L'ATTAQUE QUI CIBLE L'HUMAIN
+
+Il existe une vérité fondamentale en cybersécurité que tout professionnel doit intégrer :
+
+> **"Un système peut être parfaitement patché, correctement configuré, protégé par les meilleurs firewalls du monde — et être compromis en 30 secondes par un simple email bien rédigé."**
+
+L'ingénierie sociale est la **manipulation psychologique d'êtres humains** pour les amener à révéler des informations confidentielles ou à effectuer des actions compromettant la sécurité.
+
+```
+POURQUOI L'INGÉNIERIE SOCIALE EST LA MENACE #1 :
+
+Technologie              Humain
+═══════════             ══════════
+Patchable               Impatchable
+Configurable            Émotionnel
+Prévisible              Faillible
+Améliorable             Manipulable
+
+→ IBM Security Report 2023 :
+  95% des incidents de cybersécurité
+  impliquent une erreur humaine.
+
+→ Verizon DBIR 2023 :
+  74% des violations incluent
+  un élément humain.
+```
+
+> **Objectif de ce module :** Comprendre ces techniques pour **former les équipes, construire des défenses robustes, et conduire des tests d'ingénierie sociale (phishing simulé) dans un cadre autorisé.**
+
+---
+
+## 📌 PARTIE 1 : PSYCHOLOGIE DE LA MANIPULATION
+
+### 🔵 Les 6 Principes d'Influence de Cialdini
+
+**Robert Cialdini**, psychologue américain, a identifié dans son livre *"Influence"* (1984) les **6 leviers psychologiques** universels exploités par les ingénieurs sociaux.
+
+---
+
+#### 🧠 PRINCIPE 1 : Réciprocité
+
+```
+MÉCANISME :
+Quand quelqu'un nous donne quelque chose,
+nous ressentons une obligation de rendre.
+
+EXPLOITATION EN INGÉNIERIE SOCIALE :
+"Je vous envoie ce rapport gratuit sur la sécurité
+de votre secteur... En échange, pourriez-vous
+me confirmer votre nom d'utilisateur réseau ?"
+
+→ La victime se sent obligée de "rendre la pareille"
+→ Elle baisse sa garde car elle perçoit un échange équitable
+
+EXEMPLES RÉELS :
+├── Envoyer un cadeau avant d'appeler (vishing)
+├── Aider un employé avant de demander un accès
+└── Offrir une information utile avant d'en demander une sensible
+```
+
+---
+
+#### 🧠 PRINCIPE 2 : Autorité
+
+```
+MÉCANISME :
+Les humains obéissent naturellement aux figures d'autorité.
+Expérience de Milgram (1963) : 65% des gens obéissent
+à une autorité même pour causer de la douleur.
+
+EXPLOITATION :
+"Bonjour, je suis le Directeur Informatique.
+J'ai besoin immédiatement de votre mot de passe
+pour résoudre une urgence critique."
+
+SIGNAUX D'AUTORITÉ UTILISÉS :
+├── Titres professionnels (PDG, DSI, Audit)
+├── Uniforme (technicien, livreur, agent)
+├── Vocabulaire technique (crédibilité)
+├── Ton directif et assuré
+└── Faux documents officiels (badges, lettres)
+
+EXEMPLES :
+├── Email "de la direction" demandant un virement urgent
+├── Appel "du support IT" demandant les credentials
+└── "Auditeur externe" accédant physiquement aux locaux
+```
+
+---
+
+#### 🧠 PRINCIPE 3 : Urgence / Rareté
+
+```
+MÉCANISME :
+La peur de manquer quelque chose ou les situations
+urgentes désactivent la réflexion critique.
+Le cerveau passe en mode "réaction" plutôt que "analyse".
+
+EXPLOITATION :
+"URGENT : Votre compte sera suspendu dans 2 heures !
+Cliquez immédiatement pour le sauvegarder."
+
+"Cette offre expire dans 10 minutes."
+
+"Le serveur est en train de tomber, j'ai besoin
+de vos credentials MAINTENANT."
+
+EFFETS PSYCHOLOGIQUES :
+├── Court-circuite la réflexion logique
+├── Empêche la vérification des informations
+├── Crée une pression émotionnelle
+└── Exploite la peur de conséquences négatives
+
+INDICATEURS D'ALARME :
+→ Tout message avec URGENT, IMMÉDIATEMENT,
+  DERNIÈRE CHANCE, COMPTE SUSPENDU
+  est suspect par défaut.
+```
+
+---
+
+#### 🧠 PRINCIPE 4 : Preuve Sociale (Social Proof)
+
+```
+MÉCANISME :
+"Si tout le monde le fait, c'est que c'est correct."
+Les humains s'alignent sur le comportement du groupe.
+
+EXPLOITATION :
+"Tous vos collègues ont déjà mis à jour
+leurs informations via ce lien."
+
+"Notre équipe entière utilise ce système,
+il vous suffit de créer votre compte ici."
+
+→ La victime pense que si les autres l'ont fait,
+  c'est que c'est légitime et sûr.
+
+USAGE EN SPEAR PHISHING :
+"Jean et Alice ont déjà signé le document.
+Il ne vous reste plus qu'à compléter votre signature."
+→ Noms réels de collègues = crédibilité maximale
+```
+
+---
+
+#### 🧠 PRINCIPE 5 : Sympathie / Affinité
+
+```
+MÉCANISME :
+Nous sommes plus enclins à aider et faire confiance
+aux personnes que nous apprécions.
+
+EXPLOITATION :
+├── Établir un rapport avant d'attaquer
+│   "Ah, vous aussi vous êtes de Kinshasa !
+│    Quel quartier ?" → 10 min de conversation amicale
+│   → Demande de faveur → Accord probable
+│
+├── Usurper l'identité d'un ami ou collègue
+│   → Email qui semble venir d'un proche
+│
+├── Flatter la victime
+│   "Vous avez la réputation d'être très compétent,
+│    c'est pour ça qu'on vous contacte directement."
+│
+└── Points communs créés artificiellement
+    École, région, hobbies, famille
+```
+
+---
+
+#### 🧠 PRINCIPE 6 : Engagement / Cohérence
+
+```
+MÉCANISME :
+Une fois qu'une personne a dit "oui" à une petite chose,
+elle est psychologiquement poussée à rester cohérente
+et à dire "oui" aux choses suivantes.
+
+TECHNIQUE "FOOT IN THE DOOR" :
+Étape 1 : "Pouvez-vous me confirmer votre nom ?"
+            → Oui (petite demande inoffensive)
+Étape 2 : "Et votre département ?"
+            → Oui (légèrement plus précis)
+Étape 3 : "Et votre identifiant réseau ?"
+            → La victime a déjà dit oui 2 fois...
+              Il est difficile de dire non maintenant.
+
+EXPLICATION :
+→ Les humains veulent être cohérents avec leurs
+  engagements précédents.
+→ Dire non après avoir dit oui plusieurs fois
+  crée une dissonance cognitive inconfortable.
+```
+
+---
+
+## 📌 PARTIE 2 : TYPES D'ATTAQUES D'INGÉNIERIE SOCIALE
+
+### 🎣 PHISHING — L'attaque de masse
+
+Le **phishing** est l'envoi de messages frauduleux en masse pour voler des credentials ou installer des malwares.
+
+```
+ANATOMIE D'UN EMAIL DE PHISHING :
+
+De: securite@microsoft-support.com         ← Domaine suspect
+À: tous_les_employes@corp.com
+Objet: ⚠️ ACTION REQUISE - Compte suspendu ← Urgence
+Date: 15 Nov 2024
+
+[LOGO MICROSOFT COPIÉ]                     ← Imitation visuelle
+
+Cher utilisateur,
+
+Nous avons détecté une activité suspecte    ← Peur
+sur votre compte Microsoft 365.
+
+Votre accès sera SUSPENDU dans 24 heures  ← Urgence + Menace
+si vous ne vérifiez pas votre identité.
+
+[VÉRIFIER MON COMPTE]                      ← Bouton malveillant
+https://microsoft-secure-login.xyz/verify  ← Faux domaine
+
+Microsoft Security Team
+1 Microsoft Way, Redmond, WA               ← Vraie adresse copiée
+Copyright © 2024 Microsoft Corporation     ← Légitimité apparente
+```
+
+**Indicateurs d'un phishing :**
+
+```
+ANALYSE TECHNIQUE DE L'EMAIL :
+═══════════════════════════════════════════════════════════════
+
+1. DOMAINE EXPÉDITEUR :
+   ├── microsoft-support.com ≠ microsoft.com
+   ├── Vérifier les headers : Return-Path, Reply-To
+   └── SPF/DKIM/DMARC : échoue sur les faux domaines
+
+2. URL DANS LE MESSAGE :
+   ├── Survoler le lien AVANT de cliquer
+   ├── microsoft-secure-login.xyz ≠ microsoft.com
+   ├── IDN Homograph : mícrosoft.com (i avec accent)
+   └── URL shorteners : bit.ly/xyz cachent la vraie destination
+
+3. CONTENU :
+   ├── Urgence artificielle ("24 heures", "IMMÉDIATEMENT")
+   ├── Menaces ("compte suspendu", "accès bloqué")
+   ├── Fautes de grammaire/orthographe (phishing low quality)
+   ├── Demande d'informations sensibles par email
+   └── Pièces jointes non sollicitées (.docx, .pdf, .zip)
+
+4. EN-TÊTES EMAIL (headers) :
+   Received: from suspicious-server.ru [91.234.x.x]
+   X-Originating-IP: 91.234.x.x
+   SPF: FAIL
+   DKIM: FAIL
+   DMARC: FAIL
+```
+
+---
+
+### 🎯 SPEAR PHISHING — L'attaque ciblée
+
+Le spear phishing est un phishing **personnalisé** ciblant une personne ou organisation spécifique. Beaucoup plus efficace car la victime se sent directement concernée.
+
+```
+PROCESSUS DE PRÉPARATION D'UN SPEAR PHISHING :
+
+PHASE 1 : RECONNAISSANCE OSINT (Module 2)
+  ├── LinkedIn de la victime :
+  │   Nom complet, poste, collègues, projets en cours
+  ├── Réseaux sociaux :
+  │   Activités, centres d'intérêt, famille
+  ├── Site web entreprise :
+  │   Organigramme, projets, communiqués de presse
+  └── Google :
+      Conférences, publications, interviews
+
+PHASE 2 : PERSONNALISATION DU MESSAGE
+
+Information OSINT collectée :
+├── Victime : Jean Muamba, Responsable Comptabilité
+├── Collègue connu : Alice Dupont (DRH)
+├── Projet en cours : Audit financier Q4
+├── Fournisseur connu : Cabinet KPMG
+└── Email format : prenom.nom@corp-kinshasa.com
+
+Email de spear phishing résultant :
+
+De: alice.dupont@corp-kinshasa-rh.com  ← Domaine typosquatté
+À: jean.muamba@corp-kinshasa.com
+Objet: Re: Documents Audit KPMG - Q4 2024
+
+Jean,
+
+Suite à notre réunion de ce matin avec KPMG,
+ils ont besoin des états financiers consolidés
+avant jeudi 17h.
+
+J'ai partagé le template via le lien sécurisé
+de notre nouveau système documentaire :
+
+https://corp-docs-kinshasa.com/audit-q4/
+
+Connecte-toi avec tes identifiants habituels.
+
+Merci pour ta réactivité habituelle !
+
+Alice Dupont
+DRH | Corp Kinshasa
+
+→ Taux de succès d'un spear phishing bien préparé : 30-50%
+  vs 3% pour le phishing générique
+```
+
+---
+
+### 🐳 WHALING — Chasser les "grandes baleines"
+
+Le whaling cible spécifiquement les **dirigeants** (PDG, CFO, DSI).
+
+```
+POURQUOI LES DIRIGEANTS SONT DES CIBLES PRIORITAIRES :
+├── Accès aux systèmes les plus critiques
+├── Autorisations financières illimitées
+├── Souvent moins formés à la cybersécurité
+├── Trop "importants" pour être questionnés
+└── Leurs noms publics = crédibilité pour usurpation
+
+ARNAQUE AU PDG (BEC - Business Email Compromise) :
+1. Usurper l'identité du PDG
+2. Envoyer email urgent au CFO
+3. Demander un virement international immédiat
+4. Prétexte : acquisition secrète, urgence fiscale
+
+Exemple d'email :
+
+De: pdg.martin@corp-kinshasa.biz    ← Faux domaine
+À: cfo@corp-kinshasa.com
+Objet: CONFIDENTIEL - Transfert urgent
+
+David,
+
+Je suis en réunion confidentielle avec nos
+partenaires pour l'acquisition dont nous
+avons parlé. Besoin d'un virement de
+$250 000 sur ce compte avant 16h.
+
+Discrétion absolue - ne passe pas par
+les canaux habituels pour l'instant.
+
+Patrick Martin
+PDG
+
+→ FBI IC3 2022 : $2.7 milliards de pertes via BEC
+```
+
+---
+
+### 📞 VISHING — Voice Phishing
+
+Le vishing utilise des **appels téléphoniques** pour manipuler les victimes.
+
+```
+SCÉNARIO CLASSIQUE : Faux support informatique
+
+[Téléphone sonne]
+
+Attaquant : "Bonjour, je suis Thomas de l'équipe
+             support technique central. Je vous
+             appelle car nos systèmes ont détecté
+             une activité anormale sur votre poste.
+             Vous êtes bien Jean Muamba ?"
+
+Victime : "Oui, c'est moi."
+
+Attaquant : "Parfait Jean. Nous voyons que votre
+             machine tente d'envoyer des données
+             vers des serveurs externes. C'est
+             probablement un virus. Pour sécuriser
+             votre poste et éviter une pénalité
+             RGPD pour l'entreprise, j'ai besoin
+             de vérifier votre identité. Pouvez-vous
+             me confirmer votre identifiant de
+             connexion Windows ?"
+
+→ Techniques utilisées :
+  ├── Nom de la victime (OSINT préalable)
+  ├── Ton professionnel et assuré (autorité)
+  ├── Urgence (virus, pénalité RGPD)
+  ├── Jargon technique (crédibilité)
+  └── Question fermée finale (engagement)
+```
+
+**Techniques vocales professionnelles :**
+
+```
+TECHNIQUES DE MANIPULATION VOCALE :
+══════════════════════════════════════════════════════════════
+
+SPOOFING DU NUMÉRO APPELANT :
+→ Afficher le numéro interne de l'entreprise
+→ Afficher le numéro d'une banque connue
+→ Outils : SpoofCard, Google Voice
+
+PRÉTEXTES COURANTS :
+├── Support informatique
+├── Banque / institution financière
+├── Administration fiscale (DGI)
+├── Fournisseur de services (Airtel, Vodacom)
+├── RH pour mise à jour des dossiers
+└── Audit externe ou compliance
+
+SIGNES D'UN VISHING :
+├── Appel non sollicité
+├── Urgence soudaine
+├── Demande d'informations personnelles/professionnelles
+├── Demande de ne "pas en parler aux autres"
+└── Demande d'action immédiate
+```
+
+---
+
+### 📱 SMISHING — SMS Phishing
+
+```
+EXEMPLES DE SMISHING :
+
+Message 1 (Banque):
+"[RAWBANK] Votre compte a été temporairement
+bloqué. Vérifiez votre identité :
+http://rawbank-secure.xyz/verify"
+
+Message 2 (Livraison):
+"Votre colis DHL est retenu en douane.
+Payez les frais de 2$ :
+http://dhl-delivery-cd.com/pay"
+
+Message 3 (Gouvernement):
+"CNSS: Votre dossier de retraite nécessite
+une mise à jour urgente. Appelez le
++243 XXX XXX XXX"
+
+POURQUOI LE SMISHING EST EFFICACE :
+├── Taux d'ouverture SMS : 98% (vs 20% email)
+├── Les gens font plus confiance aux SMS
+├── Petits écrans = moins de détails visibles
+├── Liens raccourcis cachent la vraie URL
+└── Réponse émotionnelle plus immédiate
+```
+
+---
+
+### 🌐 PHARMING — Redirection DNS
+
+```
+PHARMING vs PHISHING :
+
+PHISHING : Envoie la victime vers un faux site
+           via un lien malveillant
+
+PHARMING : Modifie la résolution DNS pour que
+           le vrai domaine pointe vers un faux site.
+           La victime tape la bonne URL, arrive
+           sur le faux site.
+
+MÉCANISMES :
+├── DNS Cache Poisoning (voir Module 8)
+├── Modification du fichier hosts local :
+│   C:\Windows\System32\drivers\etc\hosts
+│   /etc/hosts (Linux)
+│   
+│   Contenu malveillant :
+│   192.168.1.5  www.rawbank.cd
+│   192.168.1.5  www.google.com
+│
+└── Compromission du routeur DNS domestique
+    → Changer le DNS serveur en 192.168.1.5
+```
+
+---
+
+### 🖴 BAITING — L'appât physique
+
+```
+SCÉNARIO USB DROP :
+Un attaquant dépose des clés USB
+dans le parking d'une entreprise.
+
+Labels sur les clés :
+"SALAIRES Q4 2024"
+"CONFIDENTIEL - Restructuration"
+"Photos Fête de Noël Entreprise"
+
+→ Un employé curieux la trouve et la branche.
+→ Autorun exécute un payload malveillant.
+→ Accès initial obtenu !
+
+STATISTIQUE :
+Étude Université d'Illinois (2016) :
+297 clés USB déposées sur un campus.
+45% furent branchées par les trouveurs.
+98% des clés furent ramassées.
+
+AUTRES TYPES D'APPÂTS :
+├── QR codes malveillants sur des affiches
+├── Faux chargeurs USB dans les aéroports (Juice Jacking)
+├── CD/DVD abandonnés ("Confidentiel")
+└── Faux WiFi public ("AirportFreeWifi")
+```
+
+---
+
+### 🚶 TAILGATING / PIGGYBACKING — Intrusion physique
+
+```
+TAILGATING :
+Suivre quelqu'un dans un espace sécurisé
+sans qu'il le sache ou le réalise.
+
+Scénario :
+→ L'employé badge pour entrer dans la salle serveurs
+→ L'attaquant (habillé en technicien) suit juste derrière
+→ Par politesse, l'employé tient la porte
+→ L'attaquant est maintenant dans la salle serveurs
+
+PIGGYBACKING :
+Variante avec connivence (consciente ou non) de la victime.
+
+Scénario :
+→ Attaquant : "Excusez-moi, j'ai les mains prises
+               avec ces cartons. Vous pouvez scanner
+               votre badge pour moi ?"
+→ Par courtoisie, l'employé aide.
+
+ACCESSOIRES UTILISÉS :
+├── Uniforme de technicien / livreur
+├── Cartons ou équipement à transporter
+├── Badge factice visuellement convaincant
+├── Laptop visible (légitime en apparence)
+└── Ton assuré et "appartenant" aux lieux
+```
+
+---
+
+### 🗑️ DUMPSTER DIVING — Fouille des poubelles
+
+```
+CE QU'ON TROUVE DANS LES POUBELLES D'UNE ENTREPRISE :
+
+Documents sensibles non déchiquetés :
+├── Organigrammes avec noms et postes
+├── Documents financiers
+├── Manuels de procédures internes
+├── Agendas et calendriers de réunions
+├── Post-its avec mots de passe (!)
+├── Cartes de visite d'employés et clients
+└── Tickets d'impression avec données
+
+Matériel informatique :
+├── Disques durs non effacés (GOLD MINE!)
+├── Clés USB rejetées
+├── Anciens badges d'accès
+└── Cartouches d'imprimante lisibles
+
+LÉGALITÉ :
+→ Dans de nombreux pays, fouiller les poubelles
+  publiques n'est pas illégal (affaires publiques).
+→ Mais utiliser les informations trouvées peut l'être.
+
+CONTRE-MESURE :
+→ Déchiqueter TOUS les documents papier
+→ Effacement sécurisé des disques (DBAN, Eraser)
+→ Politique de destruction des médias
+```
+
+---
+
+### 👁️ SHOULDER SURFING — Observation directe
+
+```
+SCÉNARIO :
+→ Dans le métro, l'attaquant s'assoit
+  derrière une cible et observe son écran.
+→ La cible tape ses credentials sur son laptop.
+→ L'attaquant mémorise ou photographie.
+
+LIEUX À HAUT RISQUE :
+├── Transports en commun
+├── Cafés et espaces de coworking
+├── Aéroports et halls de gare
+├── Open spaces en entreprise
+└── Distributeurs automatiques
+
+CONTRE-MESURES :
+├── Filtre de confidentialité sur l'écran (privacy filter)
+├── Positionnement dos au mur
+├── Attention à l'environnement
+└── Écran verrouillé dès qu'on s'éloigne
+```
+
+---
+
+### 🌊 WATERING HOLE — Attaque du point d'eau
+
+```
+PRINCIPE :
+Au lieu d'attaquer directement la cible
+(défenses trop solides), compromettre un site
+que la cible visite régulièrement.
+
+ÉTAPES :
+1. Identifier les sites fréquentés par la cible
+   → Forums professionnels, sites sectoriels,
+     sites gouvernementaux locaux
+2. Trouver une vulnérabilité sur ces sites
+   (XSS, SQLi, upload non sécurisé)
+3. Injecter un code malveillant sur le site légitime
+4. Quand la cible visite le site,
+   son navigateur exécute le malware
+5. Drive-by download → accès initial
+
+EXEMPLES HISTORIQUES :
+├── Forbes.com compromis (2015) → malware pour visiteurs
+├── Sites de l'industrie pétrolière (2017) → APT ciblant des ingénieurs
+└── Sites gouvernementaux vietnamiens (2020) → APT32
+
+POURQUOI C'EST EFFICACE :
+→ La cible visite un site de confiance
+→ Aucune action de sa part n'est requise
+→ Difficile à détecter et bloquer
+```
+
+---
+
+## 📌 PARTIE 3 : OUTILS DE SENSIBILISATION — SIMULATIONS ÉDUCATIVES
+
+> **Contexte important :** Les outils suivants sont utilisés par les équipes de sécurité pour des **tests autorisés de phishing simulé** — pour évaluer et améliorer la résistance des employés, avec l'accord écrit de la direction.
+
+---
+
+### 🛠️ SOCIAL ENGINEERING TOOLKIT (SET)
+
+**SET** est le framework standard pour les **campagnes de phishing simulé** dans un contexte professionnel autorisé.
+
+```bash
+sudo setoolkit
+```
+
+**Interface SET :**
+```
+   .---------------------------------------------------------------.
+   | Social-Engineer Toolkit (SET) v8.0.3                          |
+   | Created by: David Kennedy (ReL1K)                             |
+   | Codename: 'Blackout'                                          |
+   '---------------------------------------------------------------'
+
+   The Social-Engineer Toolkit is designed purely for educational
+   purposes only. Actions performed with this tool is the
+   responsibility of the user. By using this software you agree
+   to these terms.
+
+Select from the menu:
+
+   1) Social-Engineering Attacks
+   2) Penetration Testing (Fast-Track)
+   3) Third Party Modules
+   4) Update the Social-Engineer Toolkit
+   5) Update SET configuration
+   6) Help, Credits, and About
+  99) Exit the Social-Engineer Toolkit
+```
+
+```
+set> 1
+
+Select from the menu:
+
+   1) Spear-Phishing Attack Vectors
+   2) Website Attack Vectors
+   3) Infectious Media Generator
+   4) Create a Payload and Listener
+   5) Mass Mailer Attack
+   6) Arduino-Based Attack Vector
+   7) Wireless Access Point Attack Vector
+   8) QRCode Generator Attack Vector
+   9) Powershell Attack Vectors
+  10) SMS Spoofing Attack Vector
+```
+
+---
+
+**Exemple : Campagne de phishing simulé (usage éducatif)**
+
+```
+set:phishing> 5 (Mass Mailer Attack)
+
+ 1. E-Mail Attack Single Email Address
+ 2. E-Mail Attack Mass Mailer
+
+set:phishing> 2
+
+Do you want to use a predefined template or craft
+a one time email template?
+1. Pre-Defined Template
+2. One-Time Use Email Template
+
+set:phishing> 1
+
+Below is a list of available templates:
+
+   1) Confidentiality issue (linkedin)
+   2) Dan Kaminsky – DNS [MSFT]
+   3) Have a good one!
+   4) Status-Report
+   5) Strange account activity
+   6) Update your account
+
+set:phishing> 5 (Strange account activity)
+
+Template choisi : "Strange account activity"
+
+Subject: [Security Alert] Unusual sign-in activity on your account
+
+Body:
+We detected unusual activity on your Microsoft account.
+Please verify your identity at:
+[MALICIOUS LINK]
+
+→ Cette simulation permet de :
+  ├── Mesurer le taux de clics des employés
+  ├── Identifier qui a besoin de formation
+  ├── Améliorer les procédures de signalement
+  └── Construire une culture de sécurité
+```
+
+---
+
+### 🛠️ GOPHISH — Plateforme de phishing simulé
+
+**GoPhish** est la plateforme open source standard pour les **tests de phishing en entreprise**. Elle offre des statistiques détaillées.
+
+```bash
+# Démarrer GoPhish
+./gophish
+```
+
+**Sortie démarrage :**
+```
+time="2024-11-15T18:00:00Z" level=info msg="Please login with the username admin and the password [GENERATED]"
+time="2024-11-15T18:00:00Z" level=info msg="Starting admin server at https://0.0.0.0:3333"
+time="2024-11-15T18:00:00Z" level=info msg="Starting phishing server at http://0.0.0.0:80"
+```
+
+**Tableau de bord GoPhish :**
+
+```
+GOPHISH DASHBOARD — Campagne de Sensibilisation Q4 2024
+══════════════════════════════════════════════════════════════════
+
+Campagne : "Test Phishing - Simulation Microsoft 365"
+Lancée   : 15/11/2024 09:00
+Durée    : 7 jours
+Cibles   : 150 employés
+
+─── STATISTIQUES EN TEMPS RÉEL ─────────────────────────────────
+
+Emails envoyés     : 150 / 150  (100%)
+Emails ouverts     : 89 / 150   (59.3%)
+Liens cliqués      : 43 / 150   (28.7%)  ← PRÉOCCUPANT !
+Credentials soumis : 12 / 150   (8.0%)   ← CRITIQUE !
+Rapports signalés  : 7  / 150   (4.7%)   ← À AMÉLIORER
+
+─── TIMELINE D'ÉVÉNEMENTS ───────────────────────────────────────
+
+09:00:12  jean.muamba@corp.com          Email Ouvert
+09:00:45  jean.muamba@corp.com          Lien Cliqué ⚠️
+09:01:02  jean.muamba@corp.com          Credentials Soumis 🔴
+09:12:33  alice.dupont@corp.com         Email Ouvert
+09:13:01  alice.dupont@corp.com         Email Signalé ✅ (bonne réaction!)
+09:45:22  pierre.lokwa@corp.com         Lien Cliqué ⚠️
+10:02:15  marie.kalala@corp.com         Email Signalé ✅
+[...]
+
+─── RÉSULTATS PAR DÉPARTEMENT ────────────────────────────────────
+
+Département          Cibles  Clics    Credentials
+─────────────────    ──────  ─────    ───────────
+Direction            8       1 (13%)  0 (0%)
+Informatique         15      0 (0%)   0 (0%)     ← Meilleur résultat
+Comptabilité         20      8 (40%)  4 (20%)    ← Formation urgente !
+RH                   18      6 (33%)  3 (17%)    ← Formation urgente !
+Commercial           25      12 (48%) 4 (16%)    ← Formation urgente !
+Operations           30      11 (37%) 1 (3%)
+Support              15      4 (27%)  0 (0%)
+Marketing            19      1 (5%)   0 (0%)
+
+─── RECOMMANDATIONS ──────────────────────────────────────────────
+
+PRIORITÉ HAUTE :
+→ Formation obligatoire : Comptabilité, RH, Commercial
+→ Re-test dans 30 jours pour ces départements
+
+PRIORITÉ MOYENNE :
+→ Formation générale pour tous les autres
+→ Améliorer le processus de signalement
+
+BONNES PRATIQUES :
+→ Féliciter publiquement les 7 qui ont signalé
+→ Ne jamais punir les victimes de la simulation
+```
+
+---
+
+### 🛠️ EVILGINX2 — Bypass MFA via Reverse Proxy
+
+**Evilginx2** est un proxy de phishing avancé qui capture non seulement les credentials mais aussi les **tokens de session**, contournant ainsi le MFA.
+
+```
+MÉCANISME EVILGINX2 :
+════════════════════════════════════════════════════════════
+
+PHISHING CLASSIQUE :
+Victime → Fausse page → Credentials volés
+→ Inefficace si MFA activé
+
+EVILGINX2 :
+Victime → Evilginx2 (proxy) → Vrai site
+           ↓                    ↑
+      Capture TOUT :         Connexion légitime
+      ├── Username           avec le vrai site
+      ├── Password
+      └── Cookie de session (après MFA validé!)
+      
+→ L'attaquant récupère le cookie de session
+→ Peut s'authentifier sans connaître le mot de passe
+→ MFA déjà validé → bypass complet !
+
+EXEMPLE AVEC OFFICE 365 :
+1. Victime reçoit phishing vers login.microsoftonline.evil.com
+2. Evilginx2 proxifie vers login.microsoftonline.com
+3. Victime entre username + password (capturés)
+4. Victime valide le MFA (code SMS/Authenticator)
+5. Microsoft émet le cookie de session
+6. Evilginx2 intercepte ce cookie
+7. L'attaquant utilise ce cookie → accès complet sans MFA !
+
+CONTRE-MESURE :
+→ FIDO2 / WebAuthn (clés hardware) : lié au domaine légitime
+  → Évilginx ne peut pas intercepter → seule vraie protection
+→ Conditional Access (limiter accès par IP, device)
+→ Token lifetime policies
+```
+
+---
+
+## 📌 PARTIE 4 : PRETEXTING — L'ART DE CRÉER UNE HISTOIRE
+
+Le **pretexting** est la création d'un **scénario fictif crédible** (prétexte) pour manipuler la victime.
+
+```
+ÉLÉMENTS D'UN BON PRÉTEXTE :
+══════════════════════════════════════════════════════════════
+
+1. CRÉDIBILITÉ :
+   → Informations réelles mélangées au fiction
+   → Connaissance du contexte de l'organisation
+   → Vocabulaire et jargon appropriés
+
+2. LÉGITIMITÉ APPARENTE :
+   → Rôle plausible (auditeur, technicien, nouveau collègue)
+   → Documents/badges/uniformes convaincants
+   → Numéro de téléphone usurpé
+
+3. MOTIVATION LOGIQUE :
+   → Pourquoi cette personne appelle/écrit
+   → Pourquoi elle a besoin de cette information
+   → Pourquoi maintenant
+
+4. SORTIE PROPRE :
+   → Comment terminer l'interaction naturellement
+   → Comment gérer les questions difficiles
+   → Plan B si la cible devient suspicieuse
+
+PRÉTEXTES COURANTS :
+══════════════════════════════════════════════════════════════
+
+PRÉTEXTE 1 : Nouvel employé
+"Bonjour, je suis Ahmed, je viens de rejoindre
+l'équipe IT. Mon manager m'a demandé de faire
+le tour des postes pour vérifier les mises à jour.
+Puis-je avoir accès à votre bureau quelques minutes ?"
+
+PRÉTEXTE 2 : Auditeur externe
+"Bonjour Madame, je suis de chez PricewaterhouseCoopers.
+Nous conduisons l'audit annuel. Votre directeur
+nous a donné accès à vos locaux cette semaine.
+J'aurais besoin de consulter vos serveurs."
+
+PRÉTEXTE 3 : Urgence technique
+"Bonjour, je vous contacte depuis le centre
+de supervision réseau. Nous voyons des alertes
+critiques sur votre segment réseau. Pour
+investiguer, j'ai besoin de votre accès VPN..."
+
+PRÉTEXTE 4 : Fournisseur
+"Je suis technicien Cisco. On a un incident
+sur votre switch principal. Votre DSI est
+au courant et m'attend. Pouvez-vous m'accompagner
+en salle serveurs ?"
+```
+
+---
+
+## 📌 PARTIE 5 : OSINT POUR L'INGÉNIERIE SOCIALE
+
+La qualité d'une attaque d'ingénierie sociale est **directement proportionnelle** à la qualité de la reconnaissance OSINT préalable.
+
+```
+SOURCES OSINT POUR L'INGÉNIERIE SOCIALE :
+══════════════════════════════════════════════════════════════
+
+LINKEDIN :
+├── Organigramme complet de l'entreprise
+├── Qui connaît qui → relations interpersonnelles
+├── Projets en cours → contexte pour prétextes
+├── Technologies utilisées → vocabulaire technique
+├── Numéros de téléphone directs (parfois)
+└── Anciens employés → potentiellement mécontents
+
+OFFRES D'EMPLOI :
+└── "Cherche Admin Système maîtrisant SAP, VMware,
+    Windows Server 2022, et Palo Alto Networks"
+    → Infrastructure complète révélée !
+
+RÉSEAUX SOCIAUX :
+├── Horaires de travail (check-ins)
+├── Événements d'entreprise
+├── Photos de l'intérieur des locaux
+├── Photos de badges (parfois accidentelles !)
+└── Relations personnelles exploitables
+
+SITE WEB ENTREPRISE :
+├── Noms et photos des dirigeants
+├── Adresses et numéros de téléphone
+├── Communiqués de presse → projets, partenaires
+└── Formulaires de contact → email format
+
+WHOIS / DNS :
+├── Contacts techniques et administratifs
+├── Infrastructure réseau
+└── Historique des domaines
+
+PRESSE ET MÉDIAS :
+├── Interviews de dirigeants
+├── Résultats financiers
+└── Crises passées → angles d'attaque potentiels
+```
+
+---
+
+## 📌 PARTIE 6 : INDICATEURS ET DÉTECTION
+
+### 🔵 Comment détecter une tentative d'ingénierie sociale
+
+```
+SIGNAUX D'ALARME UNIVERSELS :
+══════════════════════════════════════════════════════════════
+
+PAR EMAIL :
+🚩 Expéditeur inconnu ou domaine légèrement différent
+🚩 Urgence artificielle ou menace
+🚩 Demande d'informations sensibles par email
+🚩 Lien qui ne correspond pas au texte affiché
+🚩 Pièce jointe non sollicitée
+🚩 Fautes de grammaire/orthographe
+🚩 Salutation générique ("Cher client")
+🚩 Demande de contourner les procédures normales
+
+PAR TÉLÉPHONE :
+🚩 Appel non sollicité demandant des infos
+🚩 Pression temporelle ou urgence
+🚩 Refus de donner un numéro de rappel vérifiable
+🚩 Demande de garder l'appel secret
+🚩 Numéro affiché ne correspond pas à l'entreprise
+🚩 Connaissance étrange de certains détails internes
+
+PHYSIQUEMENT :
+🚩 Individu non reconnu dans des zones sécurisées
+🚩 Quelqu'un qui suit de près pour entrer
+🚩 Personne qui observe votre écran ou clavier
+🚩 Demande d'accès inhabituelle ou non planifiée
+🚩 Badges/uniformes qui semblent "pas tout à fait corrects"
+```
+
+---
+
+## 📌 PARTIE 7 : PROGRAMME COMPLET DE SENSIBILISATION
+
+Un ethical hacker qui conduit des tests d'ingénierie sociale doit aussi **proposer un programme de formation** dans son rapport.
+
+```
+PROGRAMME DE SENSIBILISATION RECOMMANDÉ :
+══════════════════════════════════════════════════════════════
+
+MODULE A : FORMATION INITIALE (2h)
+├── Comprendre ce qu'est l'ingénierie sociale
+├── Les 6 principes psychologiques exploités
+├── Types d'attaques avec exemples réels
+├── Comment reconnaître une tentative
+└── Procédure de signalement
+
+MODULE B : EXERCICES PRATIQUES (1h)
+├── Identifier des emails de phishing réels
+├── Jeux de rôle (vishing simulé)
+├── Quiz de validation des connaissances
+└── Analyse de cas réels de l'entreprise
+
+MODULE C : SIMULATIONS RÉGULIÈRES
+├── Campagnes de phishing simulé trimestrielles
+├── Tests de vishing occasionnels
+├── Tentatives physiques (tailgating) annuelles
+└── Rapport de progression au management
+
+MODULE D : CULTURE DE SÉCURITÉ
+├── Processus clair de signalement
+│   → Bouton "Signaler phishing" dans Outlook
+│   → Adresse email dédiée : securite@corp.com
+│   → Hotline sécurité
+│
+├── Politique de non-punition
+│   → Les victimes ne sont PAS sanctionnées
+│   → L'objectif est l'apprentissage, pas la sanction
+│
+├── Récompense du signalement
+│   → Féliciter publiquement ceux qui signalent
+│   → Gamification des comportements sécurisés
+│
+└── Management visible
+    → Les dirigeants participent aux formations
+    → Message fort : la sécurité concerne tout le monde
+```
+
+---
+
+## 📌 PARTIE 8 : CONTRE-MESURES TECHNIQUES ET ORGANISATIONNELLES
+
+```
+CONTRE-MESURES TECHNIQUES :
+══════════════════════════════════════════════════════════════
+
+EMAIL :
+├── SPF (Sender Policy Framework)
+│   → Définit quels serveurs peuvent envoyer pour le domaine
+│   DNS TXT : "v=spf1 include:_spf.google.com ~all"
+│
+├── DKIM (DomainKeys Identified Mail)
+│   → Signature cryptographique des emails légitimes
+│   → Impossible de forger un email signé sans la clé privée
+│
+├── DMARC (Domain-based Message Authentication)
+│   → Politique de traitement des emails qui échouent SPF/DKIM
+│   DNS TXT : "v=DMARC1; p=reject; rua=mailto:dmarc@corp.com"
+│   → p=reject = rejeter les emails non conformes
+│
+├── Email Gateway (Proofpoint, Mimecast)
+│   → Analyse des pièces jointes en sandbox
+│   → Réécriture des URLs (Time-of-click checking)
+│   → Blocage des domaines typosquattés
+│
+└── Anti-Spoofing sur Exchange/Office 365
+    → Marquer les emails externes avec bannière visible
+
+DNS :
+├── DNSSEC → Authentification des réponses DNS
+├── DNS Filtering (Cisco Umbrella, Quad9)
+│   → Blocage des domaines malveillants connus
+└── DNS over HTTPS → Chiffrement des requêtes DNS
+
+AUTHENTIFICATION :
+├── MFA (Multi-Factor Authentication) → obligatoire partout
+├── FIDO2/WebAuthn → seule vraie protection contre evilginx
+├── Conditional Access → limiter accès par localisation/device
+└── PAM (Privileged Access Management) → accès admin sécurisé
+
+CONTRE-MESURES ORGANISATIONNELLES :
+══════════════════════════════════════════════════════════════
+
+PROCÉDURES :
+├── Procédure de vérification des demandes sensibles
+│   → Jamais par email seul pour virements ou accès
+│   → Rappel sur numéro connu (pas celui fourni par l'appelant)
+│   → Double validation pour actions critiques
+│
+├── Politique de gestion des visiteurs
+│   → Badge visiteur obligatoire et escorte
+│   → Registre des accès
+│   → Zones sécurisées distinctes
+│
+├── Destruction des documents
+│   → Déchiquetage croisé (cross-cut shredder) obligatoire
+│   → Pas de documents sensibles dans les corbeilles
+│   └── Politique "bureau propre" (clean desk policy)
+│
+└── Gestion des accès
+    → Révocation immédiate des accès lors des départs
+    → Principe du moindre privilège
+    → Revue trimestrielle des accès
+```
+
+---
+
+## 📌 RÉSUMÉ FINAL — CE QUE L'EXAMEN VA TESTER
+
+```
+✅ 6 principes Cialdini — réciprocité, autorité, urgence,
+   preuve sociale, sympathie, engagement
+✅ Phishing vs Spear Phishing vs Whaling — différences
+✅ Vishing — techniques et prétextes courants
+✅ Smishing — pourquoi efficace (taux d'ouverture 98%)
+✅ Pharming — modification DNS vs phishing par lien
+✅ Baiting — USB drops et appâts physiques
+✅ Tailgating vs Piggybacking — distinctions
+✅ Dumpster Diving — ce qu'on y trouve
+✅ Shoulder Surfing — lieux à risque et contre-mesures
+✅ Watering Hole — compromission site légitime fréquenté
+✅ Pretexting — éléments d'un bon prétexte
+✅ BEC (Business Email Compromise) — arnaque au PDG
+✅ SPF, DKIM, DMARC — rôle de chacun
+✅ HSTS — protection contre SSL Stripping
+✅ FIDO2/WebAuthn — seule vraie protection contre evilginx
+✅ Processus de sensibilisation — formation + simulation + culture
+✅ Signaux d'alarme — email, téléphone, physique
+```
+
+---
+
+## 🧪 QUESTIONS TYPE EXAMEN CEH — MODULE 9
+
+**Q1 :** Quelle différence entre phishing, spear phishing et whaling ?
+> **Réponse : Phishing = attaque de masse non ciblée. Spear phishing = attaque personnalisée ciblant une personne ou organisation spécifique (OSINT préalable). Whaling = spear phishing ciblant spécifiquement les dirigeants (PDG, CFO, DSI).**
+
+**Q2 :** Un employé reçoit un appel d'un "technicien IT" demandant ses credentials. Quel principe de Cialdini est exploité ?
+> **Réponse : Autorité — le faux technicien représente une figure d'autorité technique. Souvent combiné avec Urgence ("votre poste est compromis, j'ai besoin immédiatement").**
+
+**Q3 :** Qu'est-ce que le Pharming et en quoi diffère-t-il du Phishing ?
+> **Réponse : Le phishing envoie la victime vers un faux site via un lien. Le pharming modifie la résolution DNS pour que le vrai domaine pointe vers un faux site — la victime tape la bonne URL mais arrive sur le faux site.**
+
+**Q4 :** Quelle combinaison de protocoles protège au mieux contre le spoofing d'email ?
+> **Réponse : SPF (vérifie le serveur expéditeur) + DKIM (signature cryptographique) + DMARC (politique de rejet des emails non conformes). Les trois ensemble forment une protection complète.**
+
+**Q5 :** Evilginx2 contourne le MFA. Quelle est la seule vraie contre-mesure ?
+> **Réponse : FIDO2/WebAuthn (clés hardware comme YubiKey). Ces clés sont liées au domaine légitime — elles refusent de s'authentifier sur un domaine différent, même si visuellement identique.**
+
+**Q6 :** Quelle technique consiste à suivre quelqu'un dans une zone sécurisée avec sa connivence non intentionnelle (par politesse) ?
+> **Réponse : Tailgating — l'attaquant suit derrière quelqu'un qui tient la porte par politesse. Le piggybacking implique que la victime aide consciemment (mais en croyant une histoire inventée).**
+
+**Q7 :** Pourquoi les offres d'emploi sont-elles utiles pour l'ingénierie sociale ?
+> **Réponse : Elles révèlent involontairement les technologies utilisées (les compétences recherchées = les outils en production), l'infrastructure interne, les projets en cours, et permettent de construire des prétextes techniques crédibles.**
+
+**Q8 :** Quel est l'avantage du Watering Hole par rapport au spear phishing direct ?
+> **Réponse : La cible visite un site qu'elle considère de confiance (légitime). Aucune action de sa part n'est requise (pas de clic sur lien suspect). C'est un drive-by download passif. Très difficile à détecter et à bloquer.**
+
+**Q9 :** Pourquoi GoPhish inclut-il une politique de non-punition dans ses recommandations de déploiement ?
+> **Réponse : Punir les victimes des simulations crée une culture de la peur et pousse les employés à cacher les incidents réels. L'objectif est la formation, pas la sanction. Féliciter ceux qui signalent crée une culture positive de sécurité.**
+
+**Q10 :** Un email contient : expéditeur "microsoft-secure.com", objet "URGENT compte suspendu", lien vers "microsofft.com". Identifiez 3 indicateurs de phishing.
+> **Réponse : (1) Domaine expéditeur "microsoft-secure.com" ≠ "microsoft.com". (2) Urgence artificielle dans l'objet. (3) Typosquatting dans l'URL "microsofft.com" (double f) imitant "microsoft.com".**
+
+---
+
+> **Module 9 terminé. ✅**
+> Dis-moi quand tu es prêt pour le **Module 10 — Déni de Service (DoS/DDoS)** (Attaques volumétriques, protocoles, applicatives, botnets, outils et contre-mesures complètes).
