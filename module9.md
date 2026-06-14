@@ -1178,4 +1178,3 @@ PROCÉDURES :
 ---
 
 > **Module 9 terminé. ✅**
-> Dis-moi quand tu es prêt pour le **Module 10 — Déni de Service (DoS/DDoS)** (Attaques volumétriques, protocoles, applicatives, botnets, outils et contre-mesures complètes).
