@@ -1315,4 +1315,3 @@ PHASE 5 : RÉCUPÉRATION ET RAPPORT
 ---
 
 > **Module 10 terminé. ✅**
-> Dis-moi quand tu es prêt pour le **Module 11 — Vol de Session** (Session Hijacking, Cookie Stealing, CSRF, JWT attacks, Burp Suite avancé — avec démonstrations complètes).
