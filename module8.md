@@ -1262,4 +1262,3 @@ CONTRE LE SNIFFING EN GÉNÉRAL :
 ---
 
 > **Module 8 terminé. ✅**
-> Dis-moi quand tu es prêt pour le **Module 9 — Ingénierie Sociale** (Phishing avancé, SET, GoPhish, Vishing, techniques psychologiques — avec exemples complets).
